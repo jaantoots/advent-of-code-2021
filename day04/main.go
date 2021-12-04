@@ -117,8 +117,8 @@ func play_bingo(board *[5][5]int, draw []int) (int, int) {
 }
 
 func main() {
-	var best_idx int
-	var best_score int
+	var best_idx, best_score int
+	var last_idx, last_score int
 
 	draw := scan_draw()
 	// fmt.Println(draw)
@@ -133,11 +133,16 @@ func main() {
 		// fmt.Println(board)
 
 		idx, score := play_bingo(&board, draw)
-		if best_idx == 0 || idx < best_idx {
+		if best_idx == 0 || (idx > 0 && idx < best_idx) {
 			best_idx = idx
 			best_score = score
 		}
-		// fmt.Println(idx, score, best_idx, best_score)
+		if idx > last_idx {
+			last_idx = idx
+			last_score = score
+		}
+		// fmt.Println(idx, score, best_idx, best_score, last_idx, last_score)
 	}
 	fmt.Println(best_score)
+	fmt.Println(last_score)
 }
