@@ -29,5 +29,5 @@ func main() {
         }
         // fmt.Printf("%d %d %s %d\n", pos, depth, cmd, x)
     }
-    fmt.Println(pos*depth)
+    fmt.Println(pos * depth)
 }
