@@ -1,11 +1,15 @@
 package main
 
 import (
+	"os"
 	"fmt"
 	"strings"
 )
 
 func main() {
+	var days int
+	fmt.Sscanf(os.Args[1], "%d", &days)
+
 	var line string
 	_, err := fmt.Scanln(&line)
 	if err != nil {
@@ -22,7 +26,7 @@ func main() {
 	// fmt.Println(counts)
 
 	day := 0
-	for day < 80 {
+	for day < days {
 		day++
 		spawn := counts[0]
 		for i := 0; i < 8; i++ {
