@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"sort"
 )
 
 func check_match(a, b rune) bool {
@@ -21,6 +22,7 @@ func check_match(a, b rune) bool {
 
 func main() {
 	var score int
+	comps := make([]int, 0)
 	var line string
 	for {
 		_, err := fmt.Scanln(&line)
@@ -33,6 +35,7 @@ func main() {
 		buffer := make([]rune, len(line))
 		var pos int
 		var ill rune
+		var corrupt bool
 	LineParsing:
 		for _, c := range line {
 			switch c {
@@ -41,6 +44,7 @@ func main() {
 					pos--
 				} else {
 					ill = c
+					corrupt = true
 					break LineParsing
 				}
 			case '(', '[', '{', '<':
@@ -61,6 +65,29 @@ func main() {
 		case '>':
 			score += 25137
 		}
+
+		if corrupt {
+			continue
+		}
+		var comp int
+		for i := pos - 1; i >= 0; i-- {
+			comp *= 5
+			switch buffer[i] {
+			case '(':
+				comp += 1
+			case '[':
+				comp += 2
+			case '{':
+				comp += 3
+			case '<':
+				comp += 4
+			}
+		}
+		// fmt.Println(line, comp)
+		comps = append(comps, comp)
 	}
 	fmt.Println(score)
+
+	sort.Ints(comps)
+	fmt.Println(comps[len(comps)/2])
 }
