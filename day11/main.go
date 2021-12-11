@@ -102,9 +102,16 @@ func main() {
 	grid := Grid{width, arr}
 	//fmt.Println(grid)
 	var total int
-	for i := 0; i < 100; i++ {
-		total += grid.step()
+	for i := 0; ; i++ {
+		if i == 100 {
+			fmt.Println(total)
+		}
+		flashes := grid.step()
+		total += flashes
+		if flashes == len(grid.arr) {
+			fmt.Println(i + 1)
+			break
+		}
 		//fmt.Println(grid)
 	}
-	fmt.Println(total)
 }
