@@ -15,20 +15,25 @@ func check_visited(history []string, cave string) bool {
 	return false
 }
 
-func find_paths(caves map[string]bool, connections map[string][]string, history []string) [][]string {
+func find_paths(caves map[string]bool, connections map[string][]string, history []string, extra_visit bool) [][]string {
 	current := history[len(history)-1]
 	if current == "end" {
 		return [][]string{history}
 	}
 	paths := [][]string{}
 	for _, cave := range connections[current] {
+		next_extra_visit := extra_visit
 		if !caves[cave] && check_visited(history, cave) {
-			continue
+			if extra_visit && cave != "start" {
+				next_extra_visit = false
+			} else {
+				continue
+			}
 		}
 		next_history := make([]string, len(history)+1)
 		copy(next_history, history)
 		next_history[len(history)] = cave
-		for _, path := range find_paths(caves, connections, next_history) {
+		for _, path := range find_paths(caves, connections, next_history, next_extra_visit) {
 			paths = append(paths, path)
 		}
 	}
@@ -58,7 +63,10 @@ func main() {
 	}
 	//fmt.Println(caves)
 	//fmt.Println(connections)
-	paths := find_paths(caves, connections, []string{"start"})
+	paths := find_paths(caves, connections, []string{"start"}, false)
 	//fmt.Println(paths)
 	fmt.Println(len(paths))
+
+	extra_paths := find_paths(caves, connections, []string{"start"}, true)
+	fmt.Println(len(extra_paths))
 }
