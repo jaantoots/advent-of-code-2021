@@ -139,3 +139,13 @@ completed count as a single dot.
 
 *How many dots are visible after completing just the first fold
 instruction on your transparent paper?*
+
+## --- Part Two ---
+
+<span
+title="How can you fold it that many times? You tell me, I'm not the one folding it.">Finish
+folding</span> the transparent paper according to the instructions. The
+manual says the code is always *eight capital letters*.
+
+*What code do you use to activate the infrared thermal imaging camera
+system?*

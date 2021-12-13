@@ -121,4 +121,5 @@ func main() {
 	for _, fold := range folds {
 		p = p.apply_fold(fold)
 	}
+	fmt.Println(p)
 }
