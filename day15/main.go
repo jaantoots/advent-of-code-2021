@@ -6,22 +6,30 @@ import (
 )
 
 type Cave struct {
-	risk []int
+	risk  []int
 	width int
 }
 
 func (c *Cave) height() int {
 	if c.width > 0 {
-		return len(c.risk)/c.width
+		return len(c.risk) / c.width
 	}
 	return 0
 }
 
-func (c *Cave) at(x, y int) *int {
-	if x >= 0 && x < c.width && y >= 0 && y < c.height() {
-		return &c.risk[y*c.width + x]
+func (c *Cave) extend(n int) Cave {
+	big := Cave{make([]int, len(c.risk)*n*n), c.width * n}
+	h, w := c.height(), c.width
+	for j := 0; j < n; j++ {
+		for i := 0; i < n; i++ {
+			for y := 0; y < h; y++ {
+				for x := 0; x < w; x++ {
+					big.risk[j*h*n*w+i*w+y*n*w+x] = (c.risk[y*w+x]+i+j-1)%9 + 1
+				}
+			}
+		}
 	}
-	return nil
+	return big
 }
 
 func (c Cave) String() string {
@@ -32,21 +40,33 @@ func (c Cave) String() string {
 	return str
 }
 
-func (c *Cave) lowest_risk(lowest *Cave, pre_cost, x, y int) {
-	cost := c.at(x, y)
-	if cost == nil {
-		return
+type Point [2]int
+
+func (c *Cave) try_update(lowest *Cave, stack *map[Point]bool, pre_cost int, p Point) {
+	x, y := p[0], p[1]
+	if x >= 0 && x < c.width && y >= 0 && y < c.height() {
+		if pre_cost+c.risk[y*c.width+x] < lowest.risk[y*c.width+x] || lowest.risk[y*c.width+x] == 0 {
+			lowest.risk[y*c.width+x] = pre_cost + c.risk[y*c.width+x]
+			(*stack)[p] = true
+		}
 	}
-	total := pre_cost + *cost
-	best := lowest.at(x, y)
-	if *best > 0 && total >= *best {
-		return
+}
+
+func (c *Cave) lowest_risk() Cave {
+	lowest := Cave{make([]int, len(c.risk)), c.width}
+	stack := make(map[Point]bool, len(c.risk))
+	stack[Point{0, 0}] = true
+	for len(stack) > 0 {
+		for p := range stack {
+			cost := lowest.risk[p[1]*c.width+p[0]]
+			c.try_update(&lowest, &stack, cost, Point{p[0] - 1, p[1]})
+			c.try_update(&lowest, &stack, cost, Point{p[0] + 1, p[1]})
+			c.try_update(&lowest, &stack, cost, Point{p[0], p[1] - 1})
+			c.try_update(&lowest, &stack, cost, Point{p[0], p[1] + 1})
+			delete(stack, p)
+		}
 	}
-	*best = total
-	c.lowest_risk(lowest, total, x - 1, y)
-	c.lowest_risk(lowest, total, x + 1, y)
-	c.lowest_risk(lowest, total, x, y - 1)
-	c.lowest_risk(lowest, total, x, y + 1)
+	return lowest
 }
 
 func main() {
@@ -74,15 +94,13 @@ func main() {
 	}
 	cave := Cave{risk, width}
 	//fmt.Println(cave)
-	lowest := Cave{make([]int, len(cave.risk)), cave.width}
-	cave.lowest_risk(&lowest, 0, 0, 0)
+	lowest := cave.lowest_risk()
 	//fmt.Println(lowest)
-	fmt.Println(lowest.risk[len(lowest.risk)-1]-lowest.risk[0])
-	//var risk int
-	//for y := 0; y < len(grid)/width; y++ {
-	//	for x := 0; x < width; x++ {
-	//		risk += get_risk_level(grid, width, x, y)
-	//	}
-	//}
-	//fmt.Println(risk)
+	fmt.Println(lowest.risk[len(lowest.risk)-1])
+
+	big := cave.extend(5)
+	//fmt.Println(big)
+	bowest := big.lowest_risk()
+	//fmt.Println(bowest)
+	fmt.Println(bowest.risk[len(bowest.risk)-1])
 }
