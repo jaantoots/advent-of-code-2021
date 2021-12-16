@@ -21,9 +21,9 @@ func send(s *string, c chan<- uint64) {
 }
 
 type Receiver struct {
-	channel <-chan uint64
-	buffer  uint64
-	idx     int
+	channel    <-chan uint64
+	buffer     uint64
+	idx        int
 	versionSum uint64
 }
 
@@ -54,33 +54,38 @@ func (r *Receiver) recv(n int) (uint64, bool) {
 	return val<<n | extra, ok
 }
 
-func (r *Receiver) handleLiteral() uint64 {
+func (r *Receiver) handleLiteral() (uint64, uint64) {
 	var length uint64
 	var val uint64
-	for {
+	for i := 0; ; i++ {
 		length += 5
 		group, ok := r.recv(5)
 		if !ok {
 			panic("expected literal to continue")
+		}
+		if i*4 >= 64 {
+			panic("uint64 overflow")
 		}
 		val = val<<4 | (0xF & group)
 		if group>>4 == 0 {
 			break
 		}
 	}
-	fmt.Printf("literal: %d\n", val)
-	return length
+	//fmt.Printf("literal: %064b\n", val)
+	return length, val
 }
 
-func (r *Receiver) handleBits() uint64 {
+func (r *Receiver) handleBits(f func(uint64)) uint64 {
 	var length uint64 = 15
 	subLength, ok := r.recv(15)
 	if !ok {
 		panic("expected length of sub-packet bits")
 	}
-	fmt.Printf("sub-packets bits: %d\n", subLength)
+	//fmt.Printf("sub-packets bits: %d\n", subLength)
 	for length < subLength+15 {
-		length += r.handlePacket()
+		l, val := r.handlePacket()
+		length += l
+		f(val)
 	}
 	if length != subLength+15 {
 		panic("consumed too many bits")
@@ -88,54 +93,115 @@ func (r *Receiver) handleBits() uint64 {
 	return length
 }
 
-func (r *Receiver) handleNum() uint64 {
+func (r *Receiver) handleNum(f func(uint64)) uint64 {
 	var length uint64 = 11
 	subNum, ok := r.recv(11)
 	if !ok {
 		panic("expected number of sub-packets")
 	}
-	fmt.Printf("sub-packets num: %d\n", subNum)
+	//fmt.Printf("sub-packets num: %d\n", subNum)
 	var i uint64
 	for i = 0; i < subNum; i++ {
-		length += r.handlePacket()
+		l, val := r.handlePacket()
+		length += l
+		f(val)
 	}
 	return length
 }
 
-func (r *Receiver) handleOperator() uint64 {
+func (r *Receiver) handleOperator(opType uint64) (uint64, uint64) {
+	//fmt.Printf("operation %d\n", opType)
 	var length uint64 = 1
 	lengthTypeId, ok := r.recv(1)
 	if !ok {
 		panic("expected packet type")
 	}
+	var val uint64
+	// Initialize
+	switch opType {
+	case 1:
+		val = 1
+	case 2:
+		val--
+	}
+	var prev uint64
+	f := func(x uint64) {
+		switch opType {
+		case 0:
+			if x>>63 > 0 || val>>63 > 0 {
+				fmt.Printf("%064b %064b\n", x, val)
+				panic("overflow danger")
+			}
+			val += x
+		case 1:
+			if x>>32 > 0 || val>>32 > 0 {
+				fmt.Printf("%064b %064b\n", x, val)
+				panic("overflow danger")
+			}
+			val *= x
+		case 2:
+			if x < val {
+				val = x
+			}
+		case 3:
+			if x > val {
+				val = x
+			}
+		case 5:
+			if prev > x {
+				val = 1
+			} else {
+				val = 0
+			}
+			prev = x
+		case 6:
+			if prev < x {
+				val = 1
+			} else {
+				val = 0
+			}
+			prev = x
+		case 7:
+			if prev == x {
+				val = 1
+			} else {
+				val = 0
+			}
+			prev = x
+		}
+	}
 	switch lengthTypeId {
 	case 0:
-		length += r.handleBits()
+		length += r.handleBits(f)
 	case 1:
-		length += r.handleNum()
+		length += r.handleNum(f)
 	}
-	return length
+	//fmt.Printf("operation %d: %064b\n", opType, val)
+	return length, val
 }
 
-func (r *Receiver) handlePacket() uint64 {
+func (r *Receiver) handlePacket() (uint64, uint64) {
 	var length uint64 = 6
 	version, ok := r.recv(3)
 	if !ok {
-		return 0
+		return 0, 0
 	}
 	r.versionSum += version
-	fmt.Printf("version: %d\n", version)
+	//fmt.Printf("version: %d\n", version)
 	typeId, ok := r.recv(3)
 	if !ok {
 		panic("expected packet type")
 	}
+	var l, val uint64
 	switch typeId {
 	case 4:
-		length += r.handleLiteral()
+		l, val = r.handleLiteral()
+		length += l
 	default:
-		length += r.handleOperator()
+		l, val = r.handleOperator(typeId)
+		length += l
 	}
-	return length
+	return length, val
 }
 
 func handle(s string) {
@@ -143,9 +209,9 @@ func handle(s string) {
 	go send(&s, c)
 
 	r := NewReceiver(c)
-	length := r.handlePacket()
-	fmt.Println(length)
+	_, value := r.handlePacket()
 	fmt.Println(r.versionSum)
+	fmt.Println(value)
 	//for {
 	//	v, ok := r.recv(16)
 	//	if !ok {
