@@ -56,7 +56,7 @@ func (t *Target) findHighestTrajectory() int {
 		t_in := t.whenHorizontalTarget(v)
 		var last int
 		for _, tt := range t_in {
-			if tt == -1 {
+			if tt < 0 {
 				if last < t_att || t_att < 0 {
 					t_att = last
 				}
@@ -67,10 +67,10 @@ func (t *Target) findHighestTrajectory() int {
 		}
 		//fmt.Println(v, t_in, t_att, t_leg)
 	}
-	fmt.Println(t_att, t_leg)
+	//fmt.Println(t_att, t_leg)
 	// Otherwise will always skip over
 	u_max := ((-8*t.y_min-1)/2 - 1) / 2
-	fmt.Println(u_max)
+	//fmt.Println(u_max)
 	var u_att int
 	for u := 0; u <= u_max; u++ {
 		t_in := t.whenVerticalTarget(u)
@@ -86,15 +86,97 @@ func (t *Target) findHighestTrajectory() int {
 	return u_att * (u_att + 1) / 2
 }
 
+func intersectHV(t_x, t_y []int) bool {
+	var last int
+	for _, tt := range t_x {
+		if tt < 0 {
+			for _, tty := range t_y {
+				if last < tty {
+					return true
+				}
+			}
+		} else {
+			for _, tty := range t_y {
+				if tt == tty {
+					return true
+				}
+			}
+			last = tt
+		}
+	}
+	return false
+}
+
+func (t *Target) isLegal(v, u int) bool {
+	t_x := t.whenHorizontalTarget(v)
+	t_y := t.whenVerticalTarget(u)
+	return intersectHV(t_x, t_y)
+}
+
+func (t *Target) allLegal() int {
+	if t.y_max > 0 {
+		panic("y_max > 0")
+	}
+	if t.x_min < 0 {
+		panic("x_min < 0")
+	}
+	// All legal v
+	v_all := make(map[int][]int, 64)
+	v_max := t.x_max
+	for v := 0; v <= v_max; v++ {
+		t_in := t.whenHorizontalTarget(v)
+		if len(t_in) > 0 {
+			v_all[v] = t_in
+		}
+	}
+	//fmt.Println(v_all)
+	// All legal u
+	u_all := make(map[int][]int, 64)
+	u_max := ((-8*t.y_min-1)/2 - 1) / 2
+	for u := t.y_min; u <= u_max; u++ {
+		t_in := t.whenVerticalTarget(u)
+		if len(t_in) > 0 {
+			u_all[u] = t_in
+		}
+	}
+	//fmt.Println(u_all)
+
+	var legal int
+	for v, t_x := range v_all {
+		for u, t_y := range u_all {
+			if intersectHV(t_x, t_y) {
+				_ = v + u
+				//fmt.Println(v, u)
+				legal++
+			}
+		}
+	}
+	return legal
+}
+
 func main() {
 	var x_min, x_max, y_min, y_max int
-	for {
-		_, err := fmt.Scanf("target area: x=%d..%d, y=%d..%d", &x_min, &x_max, &y_min, &y_max)
-		if err != nil {
-			break
-		}
-		target := Target{x_min, x_max, y_min, y_max}
-		fmt.Println(target)
-		fmt.Println(target.findHighestTrajectory())
+	_, err := fmt.Scanf("target area: x=%d..%d, y=%d..%d", &x_min, &x_max, &y_min, &y_max)
+	if err != nil {
+		return
 	}
+	target := Target{x_min, x_max, y_min, y_max}
+	//fmt.Println(target)
+	fmt.Println(target.findHighestTrajectory())
+	fmt.Println(target.allLegal())
+
+	//var v, u int
+	//var legal int
+	//for {
+	//	_, err := fmt.Scanf("%d,%d", &v, &u)
+	//	if err != nil {
+	//		break
+	//	}
+	//	ok := target.isLegal(v, u)
+	//	if ok {
+	//		legal++
+	//	}
+	//	fmt.Println(v, u, ok)
+	//}
+	//fmt.Println(legal)
 }
