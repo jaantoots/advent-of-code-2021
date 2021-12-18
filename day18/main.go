@@ -49,8 +49,15 @@ func ParseElement(s string) (*Element, string) {
 	return &Element{0, &Pair{first, second}}, s[1:]
 }
 
-func (a *Element) add(b *Element) *Element {
-	result := Element{0, &Pair{a, b}}
+func (e *Element) Copy() *Element {
+	if e.pair == nil {
+		return &Element{e.num, nil}
+	}
+	return &Element{0, &Pair{e.pair.first.Copy(), e.pair.second.Copy()}}
+}
+
+func (a *Element) Add(b *Element) *Element {
+	result := Element{0, &Pair{a.Copy(), b.Copy()}}
 	result.reduce()
 	return &result
 }
@@ -126,16 +133,39 @@ func (e *Element) split() bool {
 	return false
 }
 
-func (e *Element) magnitude() int {
+func (e *Element) Magnitude() int {
 	if e.pair == nil {
 		return e.num
 	}
-	return 3*e.pair.first.magnitude() + 2*e.pair.second.magnitude()
+	return 3*e.pair.first.Magnitude() + 2*e.pair.second.Magnitude()
+}
+
+func maxMagnitude(all []*Element) int {
+	var max_i, max_j int
+	var max int
+	for i, x := range all {
+		for j, y := range all {
+			if i == j {
+				continue
+			}
+			sum := x.Add(y)
+			mag := sum.Magnitude()
+			if mag > max {
+				max = mag
+				max_i, max_j = i, j
+			}
+		}
+	}
+	fmt.Println(all[max_i])
+	fmt.Println(all[max_j])
+	fmt.Println(all[max_i].Add(all[max_j]))
+	return max
 }
 
 func main() {
 	var line string
 	var sum, elem *Element
+	all := make([]*Element, 0, 256)
 	for {
 		_, err := fmt.Scanln(&line)
 		if err == io.EOF {
@@ -149,10 +179,12 @@ func main() {
 		if sum == nil {
 			sum = elem
 		} else {
-			sum = sum.add(elem)
+			sum = sum.Add(elem)
 		}
 		//fmt.Printf("sum: %v\n", sum)
+		all = append(all, elem)
 	}
 	fmt.Println(sum)
-	fmt.Println(sum.magnitude())
+	fmt.Println(sum.Magnitude())
+	fmt.Println(maxMagnitude(all))
 }
