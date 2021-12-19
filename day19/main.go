@@ -30,11 +30,75 @@ func (p Point) rotateXZ() Point {
 	return Point{-p.x, p.y, -p.z}
 }
 
+func (p Point) Cycle(n int) Point {
+	pp := p
+	for j := 0; j < n; j++ {
+		pp = pp.cycle()
+	}
+	return pp
+}
+
+func (p Point) RotateXY(n int) Point {
+	pp := p
+	for j := 0; j < n; j++ {
+		pp = pp.rotateXY()
+	}
+	return pp
+}
+
+func (p Point) RotateXZ(n int) Point {
+	pp := p
+	for j := 0; j < n; j++ {
+		pp = pp.rotateXZ()
+	}
+	return pp
+}
+
+type Transform struct {
+	c, r, s int
+	delta   Point
+}
+
+func (p Point) Transform(t Transform) Point {
+	return p.Cycle(t.c).RotateXY(t.r).RotateXZ(t.s).Add(t.delta)
+}
+
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+func (a Point) L1Dist(b Point) int {
+	delta := a.Subtract(b)
+	return abs(delta.x) + abs(delta.y) + abs(delta.z)
+}
+
+func MaxL1(pos map[int]Point) (int, int, int) {
+	var max_i, max_j, max int
+	for i, p := range pos {
+		for j, r := range pos {
+			if i >= j {
+				continue
+			}
+			dist := p.L1Dist(r)
+			if dist > max {
+				max_i, max_j, max = i, j, dist
+			}
+		}
+	}
+	return max_i, max_j, max
+}
+
 type Scanner []Point
 
 type Matches map[int]int
 
-func BuildMap(scanners *map[int]*Scanner, start int) *Scanner {
+func BuildMap(scanners *map[int]*Scanner, start int) (*Scanner, map[int]Point) {
+	positions := make(map[int]Point, len(*scanners))
+	positions[start] = Point{0, 0, 0}
+
 	s := (*scanners)[start]
 	delete(*scanners, start)
 	//fmt.Println(start, *s)
@@ -42,13 +106,17 @@ func BuildMap(scanners *map[int]*Scanner, start int) *Scanner {
 	for i, o := range *scanners {
 		matches, t := s.Match(o)
 		if matches != nil {
-			subMap := BuildMap(scanners, i).Transform(t)
+			subMap, subPositions := BuildMap(scanners, i)
+			subMap = subMap.Transform(t)
+			for j, p := range subPositions {
+				positions[j] = p.Transform(t)
+			}
 			m := big.match(subMap)
 			big = big.extend(m, subMap)
 			fmt.Printf("add to %d (%d beacons) from %d (%d beacons): %d beacons\n", start, len(*big), i, len(*subMap), len(*big))
 		}
 	}
-	return big
+	return big, positions
 }
 
 func (s *Scanner) extend(matches Matches, o *Scanner) *Scanner {
@@ -66,13 +134,12 @@ func (s *Scanner) extend(matches Matches, o *Scanner) *Scanner {
 	return &big
 }
 
-type Transform struct {
-	c, r, s int
-	delta   Point
-}
-
 func (s *Scanner) Transform(t Transform) *Scanner {
-	return s.cycle(t.c).rotateXY(t.r).rotateXZ(t.s).Translate(t.delta)
+	r := make(Scanner, len(*s))
+	for i, p := range *s {
+		r[i] = p.Transform(t)
+	}
+	return &r
 }
 
 func (s *Scanner) Equals(o *Scanner) bool {
@@ -91,12 +158,11 @@ func (s *Scanner) Match(o *Scanner) (Matches, Transform) {
 	// consider every relative orientation
 	//fmt.Printf("\n\nconsider rotations of: %v\n", *o)
 	for cyc := 0; cyc < 3; cyc++ {
-		c := o.cycle(cyc)
 		for rot := 0; rot < 4; rot++ {
-			r := c.rotateXY(rot)
 			for sgn := 0; sgn < 2; sgn++ {
 				//n := s.cycle(cyc).rotateXY(rot).rotateXZ(sgn)
-				n := r.rotateXZ(sgn)
+				r := Transform{cyc, rot, sgn, Point{0, 0, 0}}
+				n := o.Transform(r)
 				//fmt.Printf("(%d, %d, %d): %v\n", cyc, rot, sgn, *n)
 				matches, translation := s.matchTranslate(n)
 				if matches != nil {
@@ -106,45 +172,6 @@ func (s *Scanner) Match(o *Scanner) (Matches, Transform) {
 		}
 	}
 	return nil, Transform{}
-}
-
-func (s *Scanner) cycle(n int) *Scanner {
-	if n == 0 {
-		return s
-	}
-	t := make(Scanner, len(*s))
-	for i, p := range *s {
-		t[i] = p
-		for j := 0; j < n; j++ {
-			t[i] = t[i].cycle()
-		}
-	}
-	return &t
-}
-
-func (s *Scanner) rotateXY(n int) *Scanner {
-	if n == 0 {
-		return s
-	}
-	t := make(Scanner, len(*s))
-	for i, p := range *s {
-		t[i] = p
-		for j := 0; j < n; j++ {
-			t[i] = t[i].rotateXY()
-		}
-	}
-	return &t
-}
-
-func (s *Scanner) rotateXZ(n int) *Scanner {
-	if n == 0 {
-		return s
-	}
-	t := make(Scanner, len(*s))
-	for i, p := range *s {
-		t[i] = p.rotateXZ()
-	}
-	return &t
 }
 
 func (s *Scanner) matchTranslate(o *Scanner) (Matches, Point) {
@@ -227,7 +254,8 @@ func main() {
 	//		}
 	//	}
 	//}
-	big := BuildMap(&scanners, 0)
+	big, positions := BuildMap(&scanners, 0)
 	//fmt.Println(*big)
 	fmt.Println(len(*big))
+	fmt.Println(MaxL1(positions))
 }
