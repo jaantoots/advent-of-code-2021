@@ -148,10 +148,19 @@ func main() {
 	if !image.Validate() {
 		panic("invalid image")
 	}
-	fmt.Println(image)
+	//fmt.Println(image)
+	img := image
 	bg := false
-	image, bg = image.Enhance(algo, bg)
-	fmt.Println(image, image.Lit())
-	image, bg = image.Enhance(algo, bg)
-	fmt.Println(image, image.Lit())
+	for i := 0; i < 2; i++ {
+		img, bg = img.Enhance(algo, bg)
+		fmt.Println(i+1, img.Lit())
+	}
+
+	img = image
+	bg = false
+	for i := 0; i < 50; i++ {
+		img, bg = img.Enhance(algo, bg)
+		fmt.Println(i+1, img.Lit())
+	}
+	fmt.Println(img.Lit())
 }
